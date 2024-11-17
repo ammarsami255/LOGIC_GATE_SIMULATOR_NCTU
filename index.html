@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Logic Gate Simulator</title>
   <style>
-   
     * {
       margin: 0;
       padding: 0;
@@ -29,7 +28,7 @@
       width: 800px;
       padding: 20px;
       display: grid;
-      grid-template-rows: auto auto auto auto;
+      grid-template-rows: auto auto auto auto auto auto;
       gap: 15px;
     }
 
@@ -43,17 +42,11 @@
       box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
     }
 
-    .controls, .gate-selector, .output-section {
+    .controls, .gate-selector, .output-section, .truth-table-section, .expression-section {
       padding: 15px;
       border-radius: 10px;
       background: #333;
       box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .controls:hover, .gate-selector:hover, .output-section:hover {
-      transform: translateY(-5px);
-      box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.8);
     }
 
     h3 {
@@ -72,19 +65,13 @@
       border-radius: 10px;
       cursor: pointer;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    button:active {
-      transform: scale(0.95);
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
     }
 
     button:hover {
       background: linear-gradient(135deg, #2575fc, #6a11cb);
     }
 
-    select {
+    select, input {
       background: #444;
       color: #fff;
       padding: 10px;
@@ -92,12 +79,26 @@
       border: 1px solid #666;
       border-radius: 10px;
       outline: none;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
-      transition: border 0.2s ease;
     }
 
-    select:focus {
-      border: 1px solid #2575fc;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    table th, table td {
+      padding: 8px 12px;
+      text-align: center;
+      border: 1px solid #555;
+    }
+
+    table th {
+      background: #444;
+    }
+
+    table td {
+      background: #333;
     }
 
     .indicator {
@@ -105,26 +106,19 @@
       width: 30px;
       height: 30px;
       border-radius: 50%;
-      border: 2px solid #444;
       background: #ff4d4d; /* Red for OFF */
       margin-left: 15px;
-      transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     .indicator.on {
       background: #4dff4d; /* Green for ON */
-      box-shadow: 0px 0px 15px #4dff4d;
     }
 
-    .controls div, .output-section div {
+    .controls div {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 10px;
-    }
-
-    .controls div:last-child {
-      margin-bottom: 0;
     }
   </style>
 </head>
@@ -135,27 +129,24 @@
     </div>
 
     <div class="controls">
-      <h3>Controls</h3>
-      <div id="inputAControl">
-        <span>Input A:</span>
-        <button id="btnA" onclick="toggleSwitch('A')">OFF</button>
+      <h3>Inputs</h3>
+      <div>
+        <label for="numInputs">Number of Inputs:</label>
+        <input id="numInputs" type="number" min="2" max="4" value="2" onchange="generateInputs()">
       </div>
-      <div id="inputBControl">
-        <span>Input B:</span>
-        <button id="btnB" onclick="toggleSwitch('B')">OFF</button>
+      <div id="inputsContainer">
       </div>
     </div>
 
     <div class="gate-selector">
       <h3>Select Gate</h3>
-      <select id="gateSelect" onchange="updateGate()">
+      <select id="gateSelect" onchange="updateOutput(); generateTruthTable();">
         <option value="AND">AND Gate</option>
         <option value="OR">OR Gate</option>
         <option value="NAND">NAND Gate</option>
         <option value="NOR">NOR Gate</option>
         <option value="XOR">XOR Gate</option>
         <option value="XNOR">XNOR Gate</option>
-        <option value="NOT">NOT Gate</option>
       </select>
     </div>
 
@@ -167,16 +158,52 @@
         <span id="outputIndicator" class="indicator"></span>
       </div>
     </div>
+
+    <div class="truth-table-section">
+      <h3>Truth Table</h3>
+      <table id="truthTable">
+      </table>
+    </div>
+
+    <div class="expression-section">
+      <h3>Simulate Logical Expression</h3>
+      <input type="text" id="expressionInput" placeholder="Enter expression (e.g., (A+B).C)">
+      <button onclick="simulateExpression()">Simulate</button>
+      <div>
+        <span>Simulated Output: </span>
+        <span id="expressionResult">0</span>
+      </div>
+    </div>
   </div>
 
   <script>
-    const states = { A: 0, B: 0 };
+    const states = [];
 
-    function toggleSwitch(input) {
-      states[input] = 1 - states[input];
-      const button = document.getElementById(`btn${input}`);
-      button.textContent = states[input] ? 'ON' : 'OFF';
-      button.style.background = states[input]
+    function generateInputs() {
+      const container = document.getElementById("inputsContainer");
+      const numInputs = parseInt(document.getElementById("numInputs").value);
+      container.innerHTML = '';
+      states.length = 0;
+
+      for (let i = 0; i < numInputs; i++) {
+        states.push(0);
+        const div = document.createElement('div');
+        div.innerHTML = `  
+          <span>Input ${String.fromCharCode(65 + i)}:</span>
+          <button id="btn${i}" onclick="toggleSwitch(${i})">OFF</button>
+        `;
+        container.appendChild(div);
+      }
+
+      updateOutput();
+      generateTruthTable();
+    }
+
+    function toggleSwitch(index) {
+      states[index] = 1 - states[index];
+      const button = document.getElementById(`btn${index}`);
+      button.textContent = states[index] ? 'ON' : 'OFF';
+      button.style.background = states[index]
         ? 'linear-gradient(135deg, #00c853, #b2ff59)'
         : 'linear-gradient(135deg, #6a11cb, #2575fc)';
       updateOutput();
@@ -192,25 +219,22 @@
 
       switch (gate) {
         case "AND":
-          result = states.A & states.B;
+          result = states.reduce((a, b) => a & b, 1);
           break;
         case "OR":
-          result = states.A | states.B;
+          result = states.reduce((a, b) => a | b, 0);
           break;
         case "NAND":
-          result = !(states.A & states.B);
+          result = !(states.reduce((a, b) => a & b, 1));
           break;
         case "NOR":
-          result = !(states.A | states.B);
+          result = !(states.reduce((a, b) => a | b, 0));
           break;
         case "XOR":
-          result = states.A ^ states.B;
+          result = states.reduce((a, b) => a ^ b, 0);
           break;
         case "XNOR":
-          result = !(states.A ^ states.B);
-          break;
-        case "NOT":
-          result = !states.A;
+          result = !(states.reduce((a, b) => a ^ b, 0));
           break;
         default:
           result = 0;
@@ -223,25 +247,84 @@
 
     function updateIndicator(state) {
       const indicator = document.getElementById("outputIndicator");
-      if (state) {
-        indicator.classList.add("on");
-      } else {
-        indicator.classList.remove("on");
-      }
+      indicator.classList.toggle("on", state);
     }
 
-    function updateGate() {
+    function generateTruthTable() {
+      const numInputs = parseInt(document.getElementById("numInputs").value);
       const gate = getSelectedGate();
-      const inputBControl = document.getElementById("inputBControl");
-      if (gate === "NOT") {
-        inputBControl.style.display = "none";
-      } else {
-        inputBControl.style.display = "flex";
+      const truthTable = document.getElementById("truthTable");
+
+      let rows = '<tr>';
+      for (let i = 0; i < numInputs; i++) {
+        rows += `<th>Input ${String.fromCharCode(65 + i)}</th>`;
       }
-      updateOutput();
+      rows += '<th>Output</th></tr>';
+
+      for (let i = 0; i < (1 << numInputs); i++) {
+        const inputs = [];
+        for (let j = 0; j < numInputs; j++) {
+          inputs[j] = (i >> (numInputs - j - 1)) & 1;
+        }
+
+        let result;
+        switch (gate) {
+          case "AND":
+            result = inputs.reduce((a, b) => a & b, 1);
+            break;
+          case "OR":
+            result = inputs.reduce((a, b) => a | b, 0);
+            break;
+          case "NAND":
+            result = !(inputs.reduce((a, b) => a & b, 1));
+            break;
+          case "NOR":
+            result = !(inputs.reduce((a, b) => a | b, 0));
+            break;
+          case "XOR":
+            result = inputs.reduce((a, b) => a ^ b, 0);
+            break;
+          case "XNOR":
+            result = !(inputs.reduce((a, b) => a ^ b, 0));
+            break;
+        }
+
+        rows += `<tr>`;
+        inputs.forEach(input => {
+          rows += `<td>${input}</td>`;
+        });
+        rows += `<td>${result}</td></tr>`;
+      }
+
+      truthTable.innerHTML = rows;
     }
 
-    updateOutput();
+    function simulateExpression() {
+      const expression = document.getElementById("expressionInput").value;
+      let output = evaluateExpression(expression);
+      document.getElementById("expressionResult").textContent = output ? '1' : '0';
+    }
+
+    function evaluateExpression(expression) {
+      let modifiedExpr = expression.toUpperCase();
+      modifiedExpr = modifiedExpr.replace(/A/g, states[0]);
+      modifiedExpr = modifiedExpr.replace(/B/g, states[1]);
+      modifiedExpr = modifiedExpr.replace(/C/g, states[2] || 0);
+      modifiedExpr = modifiedExpr.replace(/D/g, states[3] || 0);
+
+      return evaluateLogical(modifiedExpr);
+    }
+
+    function evaluateLogical(expr) {
+      let res = expr.replace(/!/g, 'not ')
+                    .replace(/\+/g, 'or ')
+                    .replace(/\./g, 'and ')
+                    .replace(/\^/g, 'xor ');
+
+      return eval(res);
+    }
+
+    generateInputs(); 
   </script>
 </body>
 </html>
