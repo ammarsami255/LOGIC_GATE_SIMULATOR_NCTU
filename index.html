@@ -258,6 +258,17 @@ table td {
         <span id="expressionResult">0</span>
       </div>
     </div>
+    <div class="sop-table-section">
+      <h3>SOP Table</h3>
+      <table id="sopTable">
+      </table>
+    </div>
+    <div class="pos-table-section">
+      <h3>POS Table</h3>
+      <table id="posTable"></table>
+    </div>
+    
+    
   </div>
 
   <script>
@@ -266,6 +277,7 @@ table td {
     function generateInputs() {
       const container = document.getElementById("inputsContainer");
       const numInputs = parseInt(document.getElementById("numInputs").value);
+      if(numInputs<=4 && numInputs>=2){
       container.innerHTML = '';
       states.length = 0;
 
@@ -280,7 +292,9 @@ table td {
       }
 
       updateOutput();
-      generateTruthTable();
+      generateTruthTable();}else{
+        alert("Max number of inputs is 4 And Min number is 2");
+      }
     }
 
     function toggleSwitch(index) {
@@ -384,10 +398,252 @@ table td {
     }
 
     function simulateExpression() {
-      const expression = document.getElementById("expressionInput").value;
-      let output = evaluateExpression(expression);
-      document.getElementById("expressionResult").textContent = output ? '1' : '0';
+  const numInputs = parseInt(document.getElementById("numInputs").value);
+  const expression = document.getElementById("expressionInput").value.trim();
+ 
+  if (!expression) {
+    alert("Please enter a logical expression.");
+    return;
+  }
+
+  // Validate the expression
+  if (!isValidExpression(expression, numInputs)) {
+    alert(
+      "Invalid expression. Only variables (A, B, C, D) and operators (!, +, ., ^) are allowed."
+    );
+    return;
+  }
+
+  // Generate the truth table and SOP table
+  const truthTableData = generateTruthTable(numInputs, expression);
+  const sopTableData = truthTableData.filter(row => row.result === 1);
+
+  renderTruthTable(truthTableData);
+  renderSOPTable(sopTableData);
+  updatePOSTable();
+
+}
+
+/**
+ * Validates the given logical expression.
+ * Ensures it contains only allowed variables (A, B, C, D) and operators (!, +, ., ^).
+ */
+/**
+ * تحسين التحقق من صحة التعبير المنطقي.
+ */
+ function isValidExpression(expression, numInputs) {
+  const validInputs = Array.from({ length: numInputs }, (_, i) =>
+    String.fromCharCode(65 + i)
+  ).join(""); // E.g., "ABCD" for numInputs = 4
+
+  const validPattern = new RegExp(`^[${validInputs}!+.^()\\s]+$`);
+  return validPattern.test(expression) && areParenthesesBalanced(expression);
+}
+
+/**
+ * تحسين الرسائل للمستخدم عند وجود أخطاء.
+ */
+function evaluateExpressionWithInputs(expression, inputs) {
+  let modifiedExpr = expression.toUpperCase();
+  inputs.forEach((value, index) => {
+    const variable = String.fromCharCode(65 + index);
+    modifiedExpr = modifiedExpr.replace(new RegExp(variable, "g"), value);
+  });
+
+  modifiedExpr = modifiedExpr
+    .replace(/!/g, "!")
+    .replace(/\+/g, "||")
+    .replace(/\./g, "&&");
+
+  try {
+    return eval(modifiedExpr) ? 1 : 0;
+  } catch (error) {
+    alert("Invalid logical expression. Please check your syntax.");
+    console.error(error);
+    return 0;
+  }
+}
+
+
+/**
+ * Checks if the parentheses in an expression are balanced.
+ */
+function areParenthesesBalanced(expression) {
+  const stack = [];
+  for (const char of expression) {
+    if (char === "(") {
+      stack.push(char);
+    } else if (char === ")") {
+      if (stack.length === 0) {
+        return false; // Unmatched closing parenthesis
+      }
+      stack.pop();
     }
+  }
+  return stack.length === 0; // Stack should be empty if balanced
+}
+
+/**
+ * Renders the POS table (only inactive maxterms).
+ */
+ function renderPOSTable(posTableData) {
+  const posTable = document.getElementById("posTable");
+  let tableHTML = "<tr>";
+
+  // Create header row
+  const numInputs = posTableData[0].inputs.length;
+  for (let i = 0; i < numInputs; i++) {
+    tableHTML += `<th>Input ${String.fromCharCode(65 + i)}</th>`;
+  }
+  tableHTML += "<th>Maxterm (POS)</th></tr>";
+
+  // Populate rows
+  posTableData.forEach(row => {
+    tableHTML += "<tr>";
+    row.inputs.forEach(input => {
+      tableHTML += `<td>${input}</td>`;
+    });
+    tableHTML += `<td>${maxtermToExpression(row.inputs)}</td></tr>`;
+  });
+
+  posTable.innerHTML = tableHTML;
+}
+
+/**
+ * Converts a binary maxterm to its logical expression format.
+ */
+function maxtermToExpression(maxterm) {
+  return maxterm
+    .map((value, index) => {
+      const variable = String.fromCharCode(65 + index); // Convert to A, B, C, etc.
+      return value === 0 ? variable : `!${variable}`;
+    })
+    .join("+");
+}
+
+/**
+ * Updates POS table based on the current logical expression or gate.
+ */
+function updatePOSTable() {
+  const numInputs = parseInt(document.getElementById("numInputs").value);
+  const expression = document.getElementById("expressionInput").value.trim();
+
+  // Generate the truth table and POS table
+  const truthTableData = generateTruthTable(numInputs, expression);
+  const posTableData = truthTableData.filter(row => row.result === 0);
+
+  renderPOSTable(posTableData);
+}
+
+/**
+ * Generates the truth table for the given expression.
+ */
+function generateTruthTable(numInputs, expression) {
+  const table = [];
+  for (let i = 0; i < (1 << numInputs); i++) {
+    const inputs = [];
+    for (let j = 0; j < numInputs; j++) {
+      inputs[j] = (i >> (numInputs - j - 1)) & 1;
+    }
+
+    // Evaluate the expression with the current inputs
+    const result = evaluateExpressionWithInputs(expression, inputs);
+    table.push({
+      inputs,
+      result,
+    });
+  }
+  return table;
+}
+
+/**
+ * Evaluates a logical expression with the given inputs.
+ */
+function evaluateExpressionWithInputs(expression, inputs) {
+  let modifiedExpr = expression.toUpperCase();
+  inputs.forEach((value, index) => {
+    const variable = String.fromCharCode(65 + index); // Convert index to A, B, C, etc.
+    modifiedExpr = modifiedExpr.replace(new RegExp(variable, "g"), value);
+  });
+
+  // Replace logical operators with JavaScript operators
+  modifiedExpr = modifiedExpr
+    .replace(/!/g, "!")
+    .replace(/\+/g, "||")
+    .replace(/\./g, "&&");
+
+  try {
+    return eval(modifiedExpr) ? 1 : 0;
+  } catch (error) {
+    alert("Invalid logical expression. Please check your syntax.");
+    return 0;
+  }
+}
+
+/**
+ * Renders the full truth table.
+ */
+function renderTruthTable(truthTableData) {
+  const truthTable = document.getElementById("truthTable");
+  let tableHTML = "<tr>";
+
+  // Create header row
+  const numInputs = truthTableData[0].inputs.length;
+  for (let i = 0; i < numInputs; i++) {
+    tableHTML += `<th>Input ${String.fromCharCode(65 + i)}</th>`;
+  }
+  tableHTML += "<th>Output</th></tr>";
+
+  // Populate rows
+  truthTableData.forEach(row => {
+    tableHTML += "<tr>";
+    row.inputs.forEach(input => {
+      tableHTML += `<td>${input}</td>`;
+    });
+    tableHTML += `<td>${row.result}</td></tr>`;
+  });
+
+  truthTable.innerHTML = tableHTML;
+}
+
+/**
+ * Renders the SOP table (only active minterms).
+ */
+function renderSOPTable(sopTableData) {
+  const sopTable = document.getElementById("sopTable");
+  let tableHTML = "<tr>";
+
+  // Create header row
+  const numInputs = sopTableData[0].inputs.length;
+  for (let i = 0; i < numInputs; i++) {
+    tableHTML += `<th>Input ${String.fromCharCode(65 + i)}</th>`;
+  }
+  tableHTML += "<th>Minterm (SOP)</th></tr>";
+
+  // Populate rows
+  sopTableData.forEach(row => {
+    tableHTML += "<tr>";
+    row.inputs.forEach(input => {
+      tableHTML += `<td>${input}</td>`;
+    });
+    tableHTML += `<td>${mintermToExpression(row.inputs)}</td></tr>`;
+  });
+
+  sopTable.innerHTML = tableHTML;
+}
+
+/**
+ * Converts a binary minterm to its logical expression format.
+ */
+function mintermToExpression(minterm) {
+  return minterm
+    .map((value, index) => {
+      const variable = String.fromCharCode(65 + index); // Convert to A, B, C, etc.
+      return value === 1 ? variable : `!${variable}`;
+    })
+    .join(".");
+}
+
 
     function evaluateExpression(expression) {
       let modifiedExpr = expression.toUpperCase();
